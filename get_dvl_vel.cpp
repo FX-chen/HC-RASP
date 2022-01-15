@@ -30,7 +30,7 @@ while(1){
     // Py_BLOCK_THREADS;
     PyGILState_STATE gstate;
     gstate = PyGILState_Ensure();
-    PyRun_SimpleString("print 'dvlA50_vel_data_python2cpp'");
+    // PyRun_SimpleString("print 'dvlA50_vel_data_python2cpp'");
     
     PyObject *pName, *pModule, *pFunc_connect, *pFunc_message;
     PyObject *pArgs, *pReturn;
@@ -105,9 +105,9 @@ while(1){
 
     int len = 4 * 4;
     // cout << " vx: "<< vx << " vy: "<< vy << " vz: "<< vz <<"distance" << distance << endl;
-    send_to_deque(velocity_and_distance, len, sensor_mode_v, disarm);
+    send_to_deque(velocity_and_distance, len, sensor_mode_v, 0x20);
     PyGILState_Release(gstate);
-    usleep(1000 * 500);
+    usleep(1000 * 50);
 }
 }
 

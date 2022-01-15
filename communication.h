@@ -4,6 +4,7 @@
 #include <wiringSerial.h>
 #include "hc_rasp.h"
 #include <Python.h>
+#include "cal_control_robust.h"
 
 extern mutex some_mutex;
 

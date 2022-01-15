@@ -78,9 +78,9 @@ while(1)
     cout << "ms5837_pressure: " << ms5837_pressure ;
     cout << endl;
     int len = 1 * 4;
-    send_to_deque(pressure_and_temperture, len, sensor_mode_pressure, disarm);
+    send_to_deque(pressure_and_temperture, len, sensor_mode_pressure, 0x10);
     PyGILState_Release(gstate);    //释放当前线程的GIL
-    usleep(1000 * 500);
+    usleep(1000 * 50);//20hz
 
 } 
     

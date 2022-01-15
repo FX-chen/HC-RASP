@@ -8,7 +8,7 @@ while(1){
     PyGILState_STATE gstate;
     gstate = PyGILState_Ensure();   //如果没有GIL，则申请获取GIL
 
-    PyRun_SimpleString("print 'dvlA50_pos_data_python2cpp'");
+    // PyRun_SimpleString("print 'dvlA50_pos_data_python2cpp'");
     // Py_BEGIN_ALLOW_THREADS;
     // Py_BLOCK_THREADS;
     PyObject *pName, *pModule, *pFunc_connect, *pFunc_message;
@@ -90,10 +90,10 @@ while(1){
     
 
     int len = 3 * 4;
-    send_to_deque(att, len, sensor_mode_att, disarm);
+    send_to_deque(att, len, sensor_mode_att, 0x40);
   
     PyGILState_Release(gstate);    //释放当前线程的GIL
-    usleep(1000 * 500);
+    usleep(1000 * 50);
 
 }
 }

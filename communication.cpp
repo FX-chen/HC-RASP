@@ -1,5 +1,6 @@
 #include"communication.h"
 
+
 using namespace std;
 
 
@@ -13,6 +14,8 @@ deque<vector<unsigned char>> process_deque;
 
 mutex deque_mutex;
 
+bool sensor_switch;
+
 // extern temp_value sensor_value;
 
 void send_to_pixhawk(){
@@ -24,18 +27,21 @@ void send_to_pixhawk(){
         cout << "send_to_pixhawk" << endl;
         wiringPiSetup();                            
         hs1 = serialOpen("/dev/ttyAMA0", 115200);
+        lock_guard<mutex> lock1(deque_mutex);
         if(!process_deque.empty()){
             temp_vector = process_deque.front();
             process_deque.pop_front();
+            
+            for(vector<unsigned char>::iterator j = temp_vector.begin(); j < temp_vector.end() ; j++){
+                // cout << *j;
+                serialPutchar(hs1, *j);
+            }
+            temp_vector.clear();
+            serialClose(hs1);
+            
         }
-        lock_guard<mutex> lock1(deque_mutex);
-        for(vector<unsigned char>::iterator j = temp_vector.begin(); j < temp_vector.end() ; j++){
-            // cout << *j;
-            serialPutchar(hs1, *j);
-        }
-        temp_vector.clear();
-        serialClose(hs1);
-        usleep(1000 * 300);
+        usleep(1000 * 2.5);//400HZ
+
     }
 
 
@@ -301,7 +307,7 @@ int main(){
     _save = PyEval_SaveThread();
 
     // PyEval_ReleaseThread(PyThreadState_Get());  
-    thread sensor_ms5837(ms5837_data_python2cpp);
+    // thread sensor_ms5837(ms5837_data_python2cpp);
     thread sensor_dvl_v(dvlA50_vel_data_python2cpp);
     thread sensor_dvl_p(dvlA50_pos_data_python2cpp);
     thread send_message(send_to_pixhawk);
@@ -315,19 +321,23 @@ int main(){
     int f_t1_flag_rec = 0;
     wiringPiSetup(); 
     hs2_rec = serialOpen("/dev/ttyAMA0", 115200);
+    cal_robust_yaw_init();
+    cal_robust_att_init();
 
     while (true)
     {
         // cout << "数量:" << thread::hardware_concurrency() << endl;
         
         // receive_from_pixhawk();
-        cout << "receive_from_pixhawk" << endl;
+        // cout << "receive_from_pixhawk" << endl;
         snum_rec = serialDataAvail(hs2_rec);
-        lock_guard<mutex> lock1(deque_mutex);
-        if(snum_rec > 0)
-        {
-            while(tnum_rec < snum_rec){
+        // lock_guard<mutex> lock1(deque_mutex);
+        printf("snum_rec%d\n",snum_rec);
 
+        if(snum_rec == 11)
+        {
+            while(snum_rec--){
+                // printf("while(snum_rec--)\n");
                 chrtmp_rec[tnum_rec] = serialGetchar(hs2_rec);  		
                 if (f_h_flag_rec == 1)
                 {
@@ -336,9 +346,10 @@ int main(){
                         if (chrtmp_rec[tnum_rec] == Frame_Tail2)
                         {
                             //content
+                            printf("receive from pix\n");
                             int len_receive;
                             len_receive = chrtmp_rec[2];
-                            if((chrtmp_rec[4] && 0x0f) == arm){ //isarm
+                            if((chrtmp_rec[4] & 0x0f) == arm){ //isarm
                                 switch (chrtmp_rec[3])//mode
                                 {
                                 case control_mode_yaw_robust:
@@ -348,11 +359,14 @@ int main(){
                                         yaw_error.value_char[i-protocol_payload] = chrtmp_rec[i];
                                     }
                                     hc_yaw_error = yaw_error.value;
+                                    printf("hc_yaw_error:%f\n",hc_yaw_error);
                                     hc_yaw_force = cal_robust_yaw_run();
+                                    
                                     int len_yaw = 1 * 4;
                                     float temp[1];
                                     temp[0] = hc_yaw_force;
                                     send_to_deque(temp, len_yaw, control_mode_yaw_robust, disarm);
+                                    cout << "hc_yaw_force" << hc_yaw_force <<endl;
                                     break;
                                 }
                                 case control_mode_depth_robust:
@@ -396,7 +410,7 @@ int main(){
                             }
 
                             // tnum = 0;
-                            tnum_rec ++;
+                            tnum_rec = 0;
                         }
                         else
                         {
@@ -456,7 +470,16 @@ int main(){
             }
 
         }
-        usleep(1000 * 5);
+        else{
+            while(snum_rec--){
+                serialGetchar(hs2_rec);
+            }
+        }
+        int j;
+        for(j = 0; j < 11; j++){
+            chrtmp_rec[j] = 0x00;
+        }
+        usleep(1000 * 2.5);
 
     }
     // sensor_ms5837.join();
@@ -465,7 +488,7 @@ int main(){
     PyEval_RestoreThread(_save);
     sensor_dvl_v.join();
     sensor_dvl_p.join();
-    sensor_ms5837.join();
+    // sensor_ms5837.join();
     send_message.join();
     Py_Finalize();
 
